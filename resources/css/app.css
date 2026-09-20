@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/* Palet warna aplikasi. Dipakai lewat class seperti bg-amethyst, text-ultramarine, dst. */
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Fraunces', ui-serif, Georgia, serif;
+
+    --color-honeydew: #f6ffe9;
+    --color-custard: #f2e0a4;
+    --color-periwinkle: #cac5e5;
+    --color-amethyst: #a230a4;
+    --color-ultramarine: #290087;
+}
+
+/* Kelas kecil yang dipakai berulang di banyak halaman. */
+@layer components {
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amethyst;
+    }
+
+    .btn-primary {
+        @apply bg-amethyst text-white shadow-sm hover:bg-ultramarine;
+    }
+
+    .btn-ghost {
+        @apply text-ultramarine hover:bg-periwinkle/40;
+    }
+
+    .card {
+        @apply rounded-2xl border border-periwinkle/60 bg-white shadow-sm;
+    }
+}
+
+/* Latar gradasi untuk halaman login dan daftar. */
+@utility bg-aurora {
+    background-image:
+        radial-gradient(45rem 30rem at 0% 0%, rgb(162 48 164 / 0.55), transparent 65%),
+        radial-gradient(40rem 30rem at 100% 100%, rgb(202 197 229 / 0.35), transparent 65%);
+}
