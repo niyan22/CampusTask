@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class TaskFactory extends Factory
 {
     /**
+     * Mata kuliah tidak diisi secara default. Pakai ->for($course) kalau perlu.
+     *
      * @return array<string, mixed>
      */
     public function definition(): array
@@ -19,7 +21,6 @@ class TaskFactory extends Factory
         return [
             'user_id' => User::factory(),
             'title' => fake()->sentence(3),
-            'course' => fake()->randomElement(['Pemrograman Web', 'Basis Data', 'Algoritma', 'Statistika']),
             'description' => fake()->optional()->sentence(),
             'priority' => fake()->randomElement(array_keys(Task::PRIORITIES)),
             'due_date' => fake()->dateTimeBetween('+1 day', '+2 weeks'),
@@ -29,7 +30,7 @@ class TaskFactory extends Factory
 
     public function done(): static
     {
-        return $this->state(['is_done' => true]);
+        return $this->state(['is_done' => true, 'completed_at' => now()]);
     }
 
     public function overdue(): static

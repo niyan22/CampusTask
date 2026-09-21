@@ -12,33 +12,41 @@ use Illuminate\View\View;
 class TaskController extends Controller
 {
     /**
-     * Daftar tugas milik user, bisa dicari (?q=) dan difilter (?filter=active|done|overdue).
+     * Daftar tugas milik user.
+     * ?q=kata  ?filter=active|done|overdue  ?sort=deadline|priority|newest
      */
     public function index(Request $request): View
     {
         $filter = $request->query('filter', 'all');
+        $sort = $request->query('sort', 'deadline');
         $search = $request->query('q');
 
         $tasks = $request->user()->tasks()
+            ->with(['course', 'subtasks', 'source.user'])
+            ->withCount('copies')
             ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('title', 'like', "%{$search}%")
-                    ->orWhere('course', 'like', "%{$search}%");
+                    ->orWhereHas('course', fn ($course) => $course->where('name', 'like', "%{$search}%"));
             }))
             ->when($filter === 'active', fn ($query) => $query->where('is_done', false))
             ->when($filter === 'done', fn ($query) => $query->where('is_done', true))
             ->when($filter === 'overdue', fn ($query) => $query->overdue())
             ->orderBy('is_done')
+            ->when($sort === 'priority', fn ($query) => $query->orderByRaw("case priority when 'high' then 1 when 'medium' then 2 else 3 end"))
+            ->when($sort === 'newest', fn ($query) => $query->latest())
             ->orderBy('due_date')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
-        return view('tasks.index', compact('tasks', 'filter', 'search'));
+        return view('tasks.index', compact('tasks', 'filter', 'sort', 'search'));
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         $task = new Task(['priority' => 'medium']);
+        $courses = $request->user()->courses()->orderBy('name')->get();
 
-        return view('tasks.form', compact('task'));
+        return view('tasks.form', compact('task', 'courses'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -48,11 +56,13 @@ class TaskController extends Controller
         return redirect()->route('tasks.index')->with('success', 'Tugas berhasil ditambahkan.');
     }
 
-    public function edit(Task $task): View
+    public function edit(Request $request, Task $task): View
     {
         Gate::authorize('manage', $task);
 
-        return view('tasks.form', compact('task'));
+        $courses = $request->user()->courses()->orderBy('name')->get();
+
+        return view('tasks.form', compact('task', 'courses'));
     }
 
     public function update(Request $request, Task $task): RedirectResponse
@@ -74,13 +84,15 @@ class TaskController extends Controller
     }
 
     /**
-     * Tandai tugas selesai / belum selesai.
+     * Tandai tugas selesai / belum selesai (dan catat kapan selesainya).
      */
     public function toggle(Task $task): RedirectResponse
     {
         Gate::authorize('manage', $task);
 
-        $task->update(['is_done' => ! $task->is_done]);
+        $isDone = ! $task->is_done;
+
+        $task->update(['is_done' => $isDone, 'completed_at' => $isDone ? now() : null]);
 
         return back();
     }
@@ -95,7 +107,7 @@ class TaskController extends Controller
     {
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'course' => ['required', 'string', 'max:100'],
+            'course_id' => ['nullable', Rule::exists('courses', 'id')->where('user_id', $request->user()->id)],
             'description' => ['nullable', 'string', 'max:1000'],
             'priority' => ['required', Rule::in(array_keys(Task::PRIORITIES))],
             'due_date' => ['required', 'date'],

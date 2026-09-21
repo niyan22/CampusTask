@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Course;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,13 +24,13 @@ class TaskTest extends TestCase
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private function validData(array $overrides = []): array
     {
         return array_merge([
             'title' => 'Laporan praktikum',
-            'course' => 'Basis Data',
+            'course_id' => Course::factory()->for($this->user)->create()->id,
             'description' => 'Kumpulkan dalam bentuk PDF.',
             'priority' => 'high',
             'due_date' => today()->addDays(3)->toDateString(),
@@ -52,6 +53,14 @@ class TaskTest extends TestCase
             ->assertDontSee('Tugas Orang Lain');
     }
 
+    public function test_task_list_shows_course_name(): void
+    {
+        $course = Course::factory()->for($this->user)->create(['name' => 'Basis Data Lanjut']);
+        Task::factory()->for($this->user)->for($course)->create();
+
+        $this->get(route('tasks.index'))->assertSee('Basis Data Lanjut');
+    }
+
     public function test_task_list_can_be_filtered_and_searched(): void
     {
         Task::factory()->for($this->user)->create(['title' => 'Tugas Aktif']);
@@ -71,17 +80,74 @@ class TaskTest extends TestCase
             ->assertDontSee('Tugas Selesai');
     }
 
+    public function test_task_list_search_also_matches_course_name(): void
+    {
+        $course = Course::factory()->for($this->user)->create(['name' => 'Kriptografi']);
+        Task::factory()->for($this->user)->for($course)->create(['title' => 'Tugas Sandi']);
+        Task::factory()->for($this->user)->create(['title' => 'Tugas Lain']);
+
+        $this->get(route('tasks.index', ['q' => 'Kripto']))
+            ->assertSee('Tugas Sandi')
+            ->assertDontSee('Tugas Lain');
+    }
+
+    public function test_task_list_can_be_sorted_by_priority_or_newest(): void
+    {
+        // Urutan deadline: Rendah dulu. Urutan prioritas: Tinggi dulu.
+        Task::factory()->for($this->user)->create(['title' => 'Tugas Rendah', 'priority' => 'low', 'due_date' => today()->addDay()]);
+        $this->travel(1)->minutes();
+        Task::factory()->for($this->user)->create(['title' => 'Tugas Tinggi', 'priority' => 'high', 'due_date' => today()->addDays(5)]);
+
+        $this->get(route('tasks.index'))->assertSeeInOrder(['Tugas Rendah', 'Tugas Tinggi']);
+        $this->get(route('tasks.index', ['sort' => 'priority']))->assertSeeInOrder(['Tugas Tinggi', 'Tugas Rendah']);
+        $this->get(route('tasks.index', ['sort' => 'newest']))->assertSeeInOrder(['Tugas Tinggi', 'Tugas Rendah']);
+    }
+
+    public function test_task_list_is_paginated_by_ten(): void
+    {
+        Task::factory()->for($this->user)->count(12)->create();
+
+        $this->get(route('tasks.index'))
+            ->assertOk()
+            ->assertViewHas('tasks', fn ($tasks) => $tasks->count() === 10 && $tasks->total() === 12)
+            ->assertSee('Halaman 1 dari 2');
+
+        $this->get(route('tasks.index', ['page' => 2]))
+            ->assertViewHas('tasks', fn ($tasks) => $tasks->count() === 2);
+    }
+
     public function test_task_is_created_for_the_logged_in_user(): void
     {
-        $this->post(route('tasks.store'), $this->validData())
+        $data = $this->validData();
+
+        $this->post(route('tasks.store'), $data)
             ->assertRedirect(route('tasks.index'))
             ->assertSessionHas('success');
 
         $this->assertDatabaseHas('tasks', [
             'user_id' => $this->user->id,
+            'course_id' => $data['course_id'],
             'title' => 'Laporan praktikum',
             'is_done' => false,
         ]);
+    }
+
+    public function test_task_can_be_created_without_a_course(): void
+    {
+        $this->post(route('tasks.store'), $this->validData(['course_id' => null]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('tasks', ['title' => 'Laporan praktikum', 'course_id' => null]);
+    }
+
+    public function test_task_rejects_a_course_owned_by_someone_else(): void
+    {
+        $foreignCourse = Course::factory()->create();
+
+        $this->post(route('tasks.store'), $this->validData(['course_id' => $foreignCourse->id]))
+            ->assertSessionHasErrors(['course_id' => 'Mata kuliah tidak ditemukan.']);
+
+        $this->assertDatabaseCount('tasks', 0);
     }
 
     public function test_task_rejects_invalid_input_with_indonesian_messages(): void
@@ -105,15 +171,17 @@ class TaskTest extends TestCase
         $this->assertDatabaseHas('tasks', ['id' => $task->id, 'title' => 'Judul baru']);
     }
 
-    public function test_task_can_be_toggled_done_and_back(): void
+    public function test_task_toggle_marks_done_with_time_and_back(): void
     {
         $task = Task::factory()->for($this->user)->create();
 
         $this->patch(route('tasks.toggle', $task));
         $this->assertTrue($task->fresh()->is_done);
+        $this->assertNotNull($task->fresh()->completed_at);
 
         $this->patch(route('tasks.toggle', $task));
         $this->assertFalse($task->fresh()->is_done);
+        $this->assertNull($task->fresh()->completed_at);
     }
 
     public function test_task_can_be_deleted(): void
@@ -125,11 +193,12 @@ class TaskTest extends TestCase
         $this->assertModelMissing($task);
     }
 
-    public function test_create_and_edit_pages_render(): void
+    public function test_create_and_edit_pages_render_with_course_options(): void
     {
+        Course::factory()->for($this->user)->create(['name' => 'Jaringan Komputer']);
         $task = Task::factory()->for($this->user)->create();
 
-        $this->get(route('tasks.create'))->assertOk()->assertSee('Simpan Tugas');
+        $this->get(route('tasks.create'))->assertOk()->assertSee('Simpan Tugas')->assertSee('Jaringan Komputer');
         $this->get(route('tasks.edit', $task))->assertOk()->assertSee('Simpan Perubahan');
     }
 

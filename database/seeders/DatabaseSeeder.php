@@ -8,7 +8,9 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Akun demo: mahasiswa@example.com / password
+     * Akun demo (password keduanya: "password"):
+     * - mahasiswa@example.com  -> punya banyak data contoh
+     * - teman@example.com      -> dipakai untuk mencoba fitur bagikan tugas
      */
     public function run(): void
     {
@@ -19,6 +21,13 @@ class DatabaseSeeder extends Seeder
             'major' => 'Teknik Informatika',
         ]);
 
-        $this->call(TaskSeeder::class);
+        User::factory()->create([
+            'name' => 'Teman Demo',
+            'email' => 'teman@example.com',
+            'nim' => '2310654321',
+            'major' => 'Teknik Informatika',
+        ]);
+
+        $this->call([CourseSeeder::class, TaskSeeder::class]);
     }
 }

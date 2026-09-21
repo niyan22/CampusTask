@@ -8,8 +8,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['title', 'course', 'description', 'priority', 'due_date', 'is_done'])]
+#[Fillable(['course_id', 'title', 'description', 'priority', 'due_date', 'is_done', 'completed_at', 'source_task_id'])]
 class Task extends Model
 {
     /** @use HasFactory<TaskFactory> */
@@ -27,6 +28,7 @@ class Task extends Model
         return [
             'due_date' => 'date',
             'is_done' => 'boolean',
+            'completed_at' => 'datetime',
         ];
     }
 
@@ -36,6 +38,42 @@ class Task extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return BelongsTo<Course, $this>
+     */
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
+    }
+
+    /**
+     * @return HasMany<Subtask, $this>
+     */
+    public function subtasks(): HasMany
+    {
+        return $this->hasMany(Subtask::class);
+    }
+
+    /**
+     * Tugas asli, kalau tugas ini adalah salinan yang dibagikan teman.
+     *
+     * @return BelongsTo<Task, $this>
+     */
+    public function source(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'source_task_id');
+    }
+
+    /**
+     * Salinan tugas ini yang sudah dibagikan ke teman.
+     *
+     * @return HasMany<Task, $this>
+     */
+    public function copies(): HasMany
+    {
+        return $this->hasMany(self::class, 'source_task_id');
     }
 
     /**
@@ -54,6 +92,16 @@ class Task extends Model
     public function priorityLabel(): string
     {
         return self::PRIORITIES[$this->priority] ?? $this->priority;
+    }
+
+    public function courseName(): string
+    {
+        return $this->course?->name ?? 'Tanpa mata kuliah';
+    }
+
+    public function courseColor(): string
+    {
+        return $this->course?->color ?? '#CAC5E5';
     }
 
     /**

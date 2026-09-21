@@ -3,17 +3,43 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-/* Palet warna aplikasi. Dipakai lewat class seperti bg-amethyst, text-ultramarine, dst. */
+/* Mode gelap aktif kalau <html> punya class "dark" (lihat components/theme-toggle). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
     --font-display: 'Fraunces', ui-serif, Georgia, serif;
 
+    /* Palet utama (dari gambar). Dipakai sebagai bg-amethyst, text-custard, dst. */
     --color-honeydew: #f6ffe9;
     --color-custard: #f2e0a4;
     --color-periwinkle: #cac5e5;
     --color-amethyst: #a230a4;
     --color-ultramarine: #290087;
+
+    /*
+     * Warna semantik yang berubah mengikuti tema (nilai mode gelap ada di bawah).
+     * page = latar halaman, surface = kartu/input, ink = teks, line = garis tepi,
+     * soft = latar chip & jalur progres, accent = teks/tautan berwarna ungu.
+     */
+    --color-page: #f6ffe9;
+    --color-surface: #ffffff;
+    --color-ink: #290087;
+    --color-line: #cac5e5;
+    --color-soft: #efedf8;
+    --color-accent: #a230a4;
+}
+
+.dark {
+    color-scheme: dark;
+
+    --color-page: #12052e;
+    --color-surface: #1e0b4b;
+    --color-ink: #f1ecff;
+    --color-line: #3d2b86;
+    --color-soft: #2c1a69;
+    --color-accent: #e2a0e4;
 }
 
 /* Kelas kecil yang dipakai berulang di banyak halaman. */
@@ -23,15 +49,19 @@
     }
 
     .btn-primary {
-        @apply bg-amethyst text-white shadow-sm hover:bg-ultramarine;
+        @apply bg-amethyst text-white shadow-sm hover:bg-ultramarine dark:hover:bg-[#b743b9];
     }
 
     .btn-ghost {
-        @apply text-ultramarine hover:bg-periwinkle/40;
+        @apply text-ink hover:bg-soft;
     }
 
     .card {
-        @apply rounded-2xl border border-periwinkle/60 bg-white shadow-sm;
+        @apply rounded-2xl border border-line bg-surface shadow-sm;
+    }
+
+    .input {
+        @apply w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm text-ink placeholder:text-ink/40 focus:border-amethyst focus:outline-2 focus:outline-amethyst/30 aria-invalid:border-rose-400;
     }
 }
 

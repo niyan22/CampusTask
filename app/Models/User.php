@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'nim', 'major', 'password'])]
+#[Fillable(['name', 'email', 'nim', 'major', 'avatar', 'remind_by_email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,6 +28,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'remind_by_email' => 'boolean',
         ];
     }
 
@@ -40,10 +41,34 @@ class User extends Authenticatable
     }
 
     /**
-     * Huruf pertama nama, dipakai sebagai avatar.
+     * @return HasMany<Course, $this>
+     */
+    public function courses(): HasMany
+    {
+        return $this->hasMany(Course::class);
+    }
+
+    /**
+     * @return HasMany<Schedule, $this>
+     */
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(Schedule::class);
+    }
+
+    /**
+     * Huruf pertama nama, dipakai sebagai avatar kalau belum ada foto.
      */
     public function initial(): string
     {
         return mb_strtoupper(mb_substr($this->name, 0, 1));
+    }
+
+    /**
+     * Alamat foto profil, atau null kalau belum upload.
+     */
+    public function avatarUrl(): ?string
+    {
+        return $this->avatar ? asset('storage/'.$this->avatar) : null;
     }
 }

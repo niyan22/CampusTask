@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Course;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,5 +61,51 @@ class CalendarTest extends TestCase
     {
         $this->get(route('calendar', ['month' => 'bukan-bulan']))
             ->assertSessionHasErrors('month');
+    }
+
+    public function test_calendar_colors_tasks_by_their_course(): void
+    {
+        $course = Course::factory()->for($this->user)->create(['name' => 'Jaringan', 'color' => '#2E9C6B']);
+        Task::factory()->for($this->user)->for($course)->create(['title' => 'Tugas Warna', 'due_date' => today()]);
+
+        $this->get(route('calendar'))
+            ->assertSee('#2E9C6B', false)
+            ->assertSee('Jaringan');
+    }
+
+    public function test_calendar_export_downloads_pending_tasks_as_ics(): void
+    {
+        $course = Course::factory()->for($this->user)->create(['name' => 'Basis Data']);
+        Task::factory()->for($this->user)->for($course)->create([
+            'title' => 'Laporan, revisi; final',
+            'description' => "Baris satu\nBaris dua",
+            'due_date' => '2026-10-05',
+        ]);
+        Task::factory()->for($this->user)->done()->create(['title' => 'Sudah selesai']);
+        Task::factory()->create(['title' => 'Tugas Orang Lain']);
+
+        $response = $this->get(route('calendar.export'))->assertOk();
+
+        $this->assertStringStartsWith('text/calendar', $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('tugas-kampus.ics', $response->headers->get('Content-Disposition'));
+
+        $body = $response->getContent();
+        $this->assertStringStartsWith("BEGIN:VCALENDAR\r\n", $body);
+        $this->assertStringEndsWith("END:VCALENDAR\r\n", $body);
+        $this->assertSame(1, substr_count($body, 'BEGIN:VEVENT'));
+        $this->assertStringContainsString("DTSTART;VALUE=DATE:20261005\r\n", $body);
+        $this->assertStringContainsString("DTEND;VALUE=DATE:20261006\r\n", $body);
+        $this->assertStringContainsString('SUMMARY:Laporan\, revisi\; final (Basis Data)', $body);
+        $this->assertStringContainsString('DESCRIPTION:Baris satu\nBaris dua', $body);
+        $this->assertStringNotContainsString('Sudah selesai', $body);
+        $this->assertStringNotContainsString('Tugas Orang Lain', $body);
+    }
+
+    public function test_calendar_export_is_empty_but_valid_without_tasks(): void
+    {
+        $body = $this->get(route('calendar.export'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('BEGIN:VCALENDAR', $body);
+        $this->assertStringNotContainsString('BEGIN:VEVENT', $body);
     }
 }

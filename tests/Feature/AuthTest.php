@@ -12,14 +12,14 @@ class AuthTest extends TestCase
 
     public function test_guest_is_redirected_from_protected_pages_to_login(): void
     {
-        foreach (['dashboard', 'tasks.index', 'calendar', 'profile.edit'] as $route) {
+        foreach (['dashboard', 'tasks.index', 'calendar', 'calendar.export', 'courses.index', 'schedule.index', 'profile.edit'] as $route) {
             $this->get(route($route))->assertRedirect(route('login'));
         }
     }
 
     public function test_guest_cannot_create_tasks(): void
     {
-        $this->post(route('tasks.store'), ['title' => 'Tugas', 'course' => 'MK', 'priority' => 'low', 'due_date' => '2026-10-01'])
+        $this->post(route('tasks.store'), ['title' => 'Tugas', 'priority' => 'low', 'due_date' => '2026-10-01'])
             ->assertRedirect(route('login'));
 
         $this->assertDatabaseCount('tasks', 0);

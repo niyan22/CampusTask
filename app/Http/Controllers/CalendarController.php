@@ -23,6 +23,7 @@ class CalendarController extends Controller
         $gridEnd = $month->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
 
         $tasksByDate = $request->user()->tasks()
+            ->with('course')
             ->whereDate('due_date', '>=', $gridStart)
             ->whereDate('due_date', '<=', $gridEnd)
             ->orderBy('is_done')

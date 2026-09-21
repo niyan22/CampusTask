@@ -1,6 +1,6 @@
 <x-layouts.guest title="Daftar">
     <h1 class="font-display text-2xl">Buat akun</h1>
-    <p class="mt-1 text-sm text-ultramarine/70">Gratis dan cuma butuh satu menit.</p>
+    <p class="mt-1 text-sm text-ink/70">Gratis dan cuma butuh satu menit.</p>
 
     <form method="POST" action="{{ route('register') }}" class="mt-6 space-y-4">
         @csrf
@@ -13,8 +13,8 @@
         <button type="submit" class="btn btn-primary w-full">Daftar</button>
     </form>
 
-    <p class="mt-6 text-center text-sm text-ultramarine/70">
+    <p class="mt-6 text-center text-sm text-ink/70">
         Sudah punya akun?
-        <a href="{{ route('login') }}" class="font-medium text-amethyst hover:underline">Masuk</a>
+        <a href="{{ route('login') }}" class="font-medium text-accent hover:underline">Masuk</a>
     </p>
 </x-layouts.guest>
